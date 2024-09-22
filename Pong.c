@@ -26,6 +26,45 @@ typedef struct ogPongData {
 	PLAYERINPUT inputs[2];
 } PONGDATA, *LPPONGDATA;
 
+void PaintGame(_In_ HDC hDc, _In_ LPPONGDATA lpPongData) {
+	HPEN hPen = CreatePen(PS_DASH, 1, RGB(127, 127, 127));
+	HGDIOBJ hBrush = GetStockObject(WHITE_BRUSH);
+	RECT paintRect = { 0 };
+
+	SelectObject(hDc, hPen);
+	SelectObject(hDc, GetStockObject(NULL_BRUSH));
+	SetBkMode(hDc, TRANSPARENT);
+
+	// Background
+	paintRect.left = 0;
+	paintRect.right = lpPongData->screenWidth;
+	paintRect.top = 0;
+	paintRect.bottom = lpPongData->screenHeight;
+	FillRect(hDc, &paintRect, GetStockObject(BLACK_BRUSH));
+
+	// Goal lines
+	MoveToEx(hDc, OG_GOAL_INSET, 0, NULL);
+	LineTo(hDc, OG_GOAL_INSET, lpPongData->screenHeight);
+
+	MoveToEx(hDc, lpPongData->screenWidth - OG_GOAL_INSET, 0, NULL);
+	LineTo(hDc, lpPongData->screenWidth - OG_GOAL_INSET, lpPongData->screenHeight);
+
+	// Paddles
+	paintRect.left = OG_GOAL_INSET - OG_PADDLE_WIDTH;
+	paintRect.right = OG_GOAL_INSET;
+	paintRect.top = lpPongData->paddles[0].offset + (lpPongData->screenHeight - OG_PADDLE_HEIGHT) / 2;
+	paintRect.bottom = lpPongData->paddles[0].offset + (lpPongData->screenHeight + OG_PADDLE_HEIGHT) / 2;
+	FillRect(hDc, &paintRect, hBrush);
+
+	paintRect.left = lpPongData->screenWidth - OG_GOAL_INSET;
+	paintRect.right = lpPongData->screenWidth - OG_GOAL_INSET + OG_PADDLE_WIDTH;
+	paintRect.top = lpPongData->paddles[1].offset + (lpPongData->screenHeight - OG_PADDLE_HEIGHT) / 2;
+	paintRect.bottom = lpPongData->paddles[1].offset + (lpPongData->screenHeight + OG_PADDLE_HEIGHT) / 2;
+	FillRect(hDc, &paintRect, hBrush);
+
+	DeleteObject(hPen);
+}
+
 LRESULT CALLBACK PongWindowProc(
 	_In_ HWND hWnd,
 	_In_ UINT uMsg,
@@ -72,49 +111,24 @@ LRESULT CALLBACK PongWindowProc(
 	case WM_PAINT:
 		{
 			LPPONGDATA lpData = GetWindowLongPtrW(hWnd, GWLP_USERDATA);
-			HPEN hPen = CreatePen(PS_DASH, 1, RGB(127, 127, 127));
-			HGDIOBJ hBrush = GetStockObject(WHITE_BRUSH);
-			RECT paintRect = { 0 };
 
 			PAINTSTRUCT ps;
 			HDC hDc = BeginPaint(hWnd, &ps);
-			HGDIOBJ prevObject = SelectObject(hDc, hPen);
-			int prevBkMode = SetBkMode(hDc, TRANSPARENT);
 
-			// Background
-			paintRect.left = 0;
-			paintRect.right = lpData->screenWidth;
-			paintRect.top = 0;
-			paintRect.bottom = lpData->screenHeight;
-			FillRect(hDc, &paintRect, GetStockObject(BLACK_BRUSH));
+			HDC hBkDc = CreateCompatibleDC(hDc);
+			HBITMAP hBitmap = CreateCompatibleBitmap(hDc, lpData->screenWidth, lpData->screenHeight);
 
-			// Goal lines
-			MoveToEx(hDc, OG_GOAL_INSET, 0, NULL);
-			LineTo(hDc, OG_GOAL_INSET, lpData->screenHeight);
+			SelectObject(hBkDc, hBitmap);
 
-			MoveToEx(hDc, lpData->screenWidth - OG_GOAL_INSET, 0, NULL);
-			LineTo(hDc, lpData->screenWidth - OG_GOAL_INSET, lpData->screenHeight);
+			PaintGame(hBkDc, lpData);
+			BitBlt(hDc, 0, 0, lpData->screenWidth, lpData->screenHeight, hBkDc, 0, 0, SRCCOPY);
 
-			// Paddles
-			paintRect.left = OG_GOAL_INSET - OG_PADDLE_WIDTH;
-			paintRect.right = OG_GOAL_INSET;
-			paintRect.top = lpData->paddles[0].offset + (lpData->screenHeight - OG_PADDLE_HEIGHT) / 2;
-			paintRect.bottom = lpData->paddles[0].offset + (lpData->screenHeight + OG_PADDLE_HEIGHT) / 2;
-			FillRect(hDc, &paintRect, hBrush);
+			DeleteObject(hBitmap);
+			DeleteDC(hBkDc);
 
-			paintRect.left = lpData->screenWidth - OG_GOAL_INSET;
-			paintRect.right = lpData->screenWidth - OG_GOAL_INSET + OG_PADDLE_WIDTH;
-			paintRect.top = lpData->paddles[1].offset + (lpData->screenHeight - OG_PADDLE_HEIGHT) / 2;
-			paintRect.bottom = lpData->paddles[1].offset + (lpData->screenHeight + OG_PADDLE_HEIGHT) / 2;
-			FillRect(hDc, &paintRect, hBrush);
-
-			SetBkMode(hDc, prevBkMode);
-			SelectObject(hDc, prevObject);
 			EndPaint(hWnd, &ps);
-
-			DeleteObject(hPen);
 		}
-		break;
+		return 0;
 	case WM_KEYDOWN:
 		{
 			LPPONGDATA lpData = GetWindowLongPtrW(hWnd, GWLP_USERDATA);
