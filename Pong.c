@@ -52,14 +52,14 @@ void PaintGame(_In_ HDC hDc, _In_ LPPONGDATA lpPongData) {
 	// Paddles
 	paintRect.left = OG_GOAL_INSET - OG_PADDLE_WIDTH;
 	paintRect.right = OG_GOAL_INSET;
-	paintRect.top = lpPongData->paddles[0].offset + (lpPongData->screenHeight - OG_PADDLE_HEIGHT) / 2;
-	paintRect.bottom = lpPongData->paddles[0].offset + (lpPongData->screenHeight + OG_PADDLE_HEIGHT) / 2;
+	paintRect.top = lpPongData->paddles[0].offset;
+	paintRect.bottom = lpPongData->paddles[0].offset + OG_PADDLE_HEIGHT;
 	FillRect(hDc, &paintRect, hBrush);
 
 	paintRect.left = lpPongData->screenWidth - OG_GOAL_INSET;
 	paintRect.right = lpPongData->screenWidth - OG_GOAL_INSET + OG_PADDLE_WIDTH;
-	paintRect.top = lpPongData->paddles[1].offset + (lpPongData->screenHeight - OG_PADDLE_HEIGHT) / 2;
-	paintRect.bottom = lpPongData->paddles[1].offset + (lpPongData->screenHeight + OG_PADDLE_HEIGHT) / 2;
+	paintRect.top = lpPongData->paddles[1].offset;
+	paintRect.bottom = lpPongData->paddles[1].offset + OG_PADDLE_HEIGHT;
 	FillRect(hDc, &paintRect, hBrush);
 
 	DeleteObject(hPen);
@@ -176,8 +176,8 @@ LRESULT CALLBACK PongWindowProc(
 }
 
 void UpdateGame(_In_ LPPONGDATA lpPongData) {
-	const INT minOffset = (-lpPongData->screenHeight + OG_PADDLE_HEIGHT) / 2;
-	const INT maxOffset = (lpPongData->screenHeight - OG_PADDLE_HEIGHT) / 2;
+	const INT minOffset = 0;
+	const INT maxOffset = lpPongData->screenHeight - OG_PADDLE_HEIGHT;
 
 	for (size_t i = 0; i < 2; ++i) {
 		LPPLAYERINPUT input = &lpPongData->inputs[i];
@@ -300,6 +300,8 @@ int WINAPI wWinMain(
 	PONGDATA pongData = { 0 };
 	pongData.screenWidth = 800;
 	pongData.screenHeight = 600;
+	pongData.paddles[0].offset = (pongData.screenHeight - OG_PADDLE_HEIGHT) / 2;
+	pongData.paddles[1].offset = (pongData.screenHeight - OG_PADDLE_HEIGHT) / 2;
 	HWND hPongWindow = CreatePongWindow(hInstance, &pongData);
 	if (!hPongWindow) {
 		return 1;
