@@ -103,14 +103,14 @@ LRESULT CALLBACK PongWindowProc(
 	case WM_CREATE:
 		{
 			LPPONGDATA lpData = ((LPCREATESTRUCTW)lParam)->lpCreateParams;
-			SetWindowLongPtr(hWnd, GWLP_USERDATA, lpData);
+			SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)lpData);
 		}
-		break;
+		return 0;
 	case WM_ERASEBKGND:
 		return 1;
 	case WM_PAINT:
 		{
-			LPPONGDATA lpData = GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+			LPPONGDATA lpData = (LPPONGDATA)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
 
 			PAINTSTRUCT ps;
 			HDC hDc = BeginPaint(hWnd, &ps);
@@ -131,7 +131,7 @@ LRESULT CALLBACK PongWindowProc(
 		return 0;
 	case WM_KEYDOWN:
 		{
-			LPPONGDATA lpData = GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+			LPPONGDATA lpData = (LPPONGDATA)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
 
 			if (wParam == 'W') {
 				lpData->inputs[0].up = TRUE;
@@ -147,10 +147,10 @@ LRESULT CALLBACK PongWindowProc(
 				lpData->inputs[1].down = TRUE;
 			}
 		}
-		break;
+		return 0;
 	case WM_KEYUP:
 		{
-			LPPONGDATA lpData = GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+			LPPONGDATA lpData = (LPPONGDATA)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
 
 			if (wParam == 'W') {
 				lpData->inputs[0].up = FALSE;
@@ -166,7 +166,7 @@ LRESULT CALLBACK PongWindowProc(
 				lpData->inputs[1].down = FALSE;
 			}
 		}
-		break;
+		return 0;
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		break;
@@ -225,7 +225,7 @@ int GameLoop(_In_ HWND hPongWindow, _In_ LPPONGDATA lpPongData) {
 		// Input
 		while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
 			if (msg.message == WM_QUIT) {
-				return msg.wParam;
+				return (int)msg.wParam;
 			}
 
 			DispatchMessageW(&msg);
@@ -253,7 +253,7 @@ int GameLoop(_In_ HWND hPongWindow, _In_ LPPONGDATA lpPongData) {
 
 	} while (msg.message != WM_QUIT); // Should never happen; see return in Input
 
-	return msg.wParam;
+	return (int)msg.wParam;
 }
 
 HWND CreatePongWindow(_In_ HINSTANCE hInstance, _In_ LPPONGDATA lpPongData) {
@@ -287,10 +287,10 @@ HWND CreatePongWindow(_In_ HINSTANCE hInstance, _In_ LPPONGDATA lpPongData) {
 	return hPongWindow;
 }
 
-int APIENTRY wWinMain(
+int WINAPI wWinMain(
 	_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
-	_In_ LPCWSTR lpCmdLine,
+	_In_ LPWSTR lpCmdLine,
 	_In_ int nCmdShow
 ) {
 	UNREFERENCED_PARAMETER(hPrevInstance);
