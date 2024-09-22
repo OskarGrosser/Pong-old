@@ -176,7 +176,8 @@ LRESULT CALLBACK PongWindowProc(
 }
 
 void UpdateGame(_In_ LPPONGDATA lpPongData) {
-	INT minOffset = (lpPongData->screenHeight - OG_PADDLE_HEIGHT) / 2;
+	const INT minOffset = (-lpPongData->screenHeight + OG_PADDLE_HEIGHT) / 2;
+	const INT maxOffset = (lpPongData->screenHeight - OG_PADDLE_HEIGHT) / 2;
 
 	for (size_t i = 0; i < 2; ++i) {
 		LPPLAYERINPUT input = &lpPongData->inputs[i];
@@ -187,9 +188,9 @@ void UpdateGame(_In_ LPPONGDATA lpPongData) {
 		if (input->down) ++direction;
 
 		paddle->offset += direction * OG_PADDLE_SPEED;
+		if (paddle->offset < minOffset) paddle->offset = minOffset;
+		if (paddle->offset > maxOffset) paddle->offset = maxOffset;
 	}
-
-	if (lpPongData->paddles[0].offset) return;
 }
 
 int GameLoop(_In_ HWND hPongWindow, _In_ LPPONGDATA lpPongData) {
