@@ -229,7 +229,9 @@ int WINAPI wWinMain(
 	PONGDATA pongData = { 0 };
 	pongData.screenWidth = 800;
 	pongData.screenHeight = 600;
-	ResetGame(&pongData);
+	if (!ResetGame(&pongData)) {
+		return 1;
+	}
 	HWND hPongWindow = CreatePongWindow(hInstance, &pongData);
 	if (!hPongWindow) {
 		return 1;

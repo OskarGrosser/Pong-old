@@ -72,17 +72,17 @@ void UpdateGame(_Inout_ LPPONGDATA lpPongData) {
 	const INT minOffset = 0;
 	const INT maxOffset = lpPongData->screenHeight - OG_PADDLE_HEIGHT;
 
+	LPPLAYERINPUT inputs = (LPPLAYERINPUT) &lpPongData->inputs;
+	LPPADDLE paddles = (LPPADDLE) &lpPongData->paddles;
+
 	for (size_t i = 0; i < 2; ++i) {
-		LPPLAYERINPUT input = &lpPongData->inputs[i];
-		LPPADDLE paddle = &lpPongData->paddles[i];
-
 		INT direction = 0;
-		if (input->up) --direction;
-		if (input->down) ++direction;
+		if (inputs[i].up) --direction;
+		if (inputs[i].down) ++direction;
 
-		paddle->offset += direction * OG_PADDLE_SPEED;
-		if (paddle->offset < minOffset) paddle->offset = minOffset;
-		if (paddle->offset > maxOffset) paddle->offset = maxOffset;
+		paddles[i].offset += direction * OG_PADDLE_SPEED;
+		if (paddles[i].offset < minOffset) paddles[i].offset = minOffset;
+		if (paddles[i].offset > maxOffset) paddles[i].offset = maxOffset;
 	}
 
 	LPBALL lpBall = &lpPongData->ball;
@@ -102,7 +102,6 @@ void UpdateGame(_Inout_ LPPONGDATA lpPongData) {
 	}
 
 	// Paddle bounce
-	LPPADDLE paddles = &lpPongData->paddles;
 	const INT goals[2] = { OG_GOAL_INSET, lpPongData->screenWidth - OG_GOAL_INSET };
 
 	if (lpBall->x <= goals[0]) {
@@ -110,6 +109,9 @@ void UpdateGame(_Inout_ LPPONGDATA lpPongData) {
 			&& lpBall->y + OG_BALL_SIZE >= paddles[0].offset;
 
 		if (isBlocked) {
+			if (inputs[0].up) --lpBall->vy;
+			if (inputs[0].down) ++lpBall->vy;
+
 			lpBall->x = 2 * goals[0] - lpBall->x;
 			lpBall->vx = -lpBall->vx + 1;
 		} else {
@@ -123,6 +125,9 @@ void UpdateGame(_Inout_ LPPONGDATA lpPongData) {
 			&& lpBall->y + OG_BALL_SIZE >= paddles[1].offset;
 
 		if (isBlocked) {
+			if (inputs[1].up) --lpBall->vy;
+			if (inputs[1].down) ++lpBall->vy;
+
 			lpBall->x = 2 * (goals[1] - OG_BALL_SIZE) - lpBall->x;
 			lpBall->vx = -lpBall->vx - 1;
 		} else {
@@ -132,7 +137,7 @@ void UpdateGame(_Inout_ LPPONGDATA lpPongData) {
 	}
 }
 
-void ResetGame(_Inout_ LPPONGDATA lpPongData) {
+int ResetGame(_Inout_ LPPONGDATA lpPongData) {
 	static BOOL isInitialized = FALSE;
 	static HMODULE hAdvapi32;
 	static LPFNRTLGENRANDOM ogRtlGenRandom;
@@ -141,13 +146,13 @@ void ResetGame(_Inout_ LPPONGDATA lpPongData) {
 		hAdvapi32 = LoadLibraryW(L"Advapi32.dll");
 		if (!hAdvapi32) {
 			MessageBoxW(NULL, L"Couldn't load the Advapi32.dll library.", L"Missing Library", MB_OK);
-			return 1;
+			return 0;
 		}
 
 		ogRtlGenRandom = (LPFNRTLGENRANDOM)GetProcAddress(hAdvapi32, "SystemFunction036");
 		if (!ogRtlGenRandom) {
 			MessageBoxW(NULL, L"Couldn't load RtlGenRandom (SystemFunction036) from the Advapi32.dll library.", L"Missing Function", MB_OK);
-			return 1;
+			return 0;
 		}
 
 		isInitialized = TRUE;
@@ -164,4 +169,6 @@ void ResetGame(_Inout_ LPPONGDATA lpPongData) {
 	lpPongData->ball.vx = 2;
 	ogRtlGenRandom(&lpPongData->ball.vy, sizeof(lpPongData->ball.vy));
 	lpPongData->ball.vy = lpPongData->ball.vy % 5 - 2;
+
+	return 1;
 }

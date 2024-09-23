@@ -37,4 +37,4 @@ typedef struct ogPongData {
 
 void PaintGame(_In_ HDC hDc, _In_ LPPONGDATA lpPongData);
 void UpdateGame(_Inout_ LPPONGDATA lpPongData);
-void ResetGame(_Inout_ LPPONGDATA lpPongData);
+int ResetGame(_Inout_ LPPONGDATA lpPongData);
