@@ -1,7 +1,6 @@
 #include "Pong.h"
 #include <windows.h>
 #include <crtdbg.h>
-#include <ntsecapi.h>
 
 #define OG_TARGET_FREQUENCY 60
 
@@ -12,9 +11,6 @@
 #define OG_PADDLE_SPEED 4
 
 #define OG_GOAL_INSET 50
-
-typedef BOOLEAN (__stdcall *LPFNRTLGENRANDOM)(_Out_writes_bytes_(RandomBufferLength) PVOID RandomBuffer, _In_ ULONG RandomBufferLength);
-LPFNRTLGENRANDOM ogRtlGenRandom;
 
 static LRESULT CALLBACK PongWindowProc(
 	_In_ HWND hWnd,
@@ -126,7 +122,7 @@ static LRESULT CALLBACK PongWindowProc(
 	return DefWindowProcW(hWnd, uMsg, wParam, lParam);
 }
 
-static int GameLoop(_In_ HWND hPongWindow, _In_ LPPONGDATA lpPongData) {
+static int GameLoop(_In_ HWND hPongWindow, _Inout_ LPPONGDATA lpPongData) {
 	LARGE_INTEGER qpFrequency;
 	if (!QueryPerformanceFrequency(&qpFrequency)) {
 		return 1;
@@ -230,28 +226,10 @@ int WINAPI wWinMain(
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
 
-	HMODULE hAdvapi32 = LoadLibraryW(L"Advapi32.dll");
-	if (!hAdvapi32) {
-		MessageBoxW(NULL, L"Couldn't load the Advapi32.dll library.", L"Missing Library", MB_OK);
-		return 1;
-	}
-
-	ogRtlGenRandom = (LPFNRTLGENRANDOM)GetProcAddress(hAdvapi32, "SystemFunction036");
-	if (!ogRtlGenRandom) {
-		MessageBoxW(NULL, L"Couldn't load RtlGenRandom (SystemFunction036) from the Advapi32.dll library.", L"Missing Function", MB_OK);
-		return 1;
-	}
-
 	PONGDATA pongData = { 0 };
 	pongData.screenWidth = 800;
 	pongData.screenHeight = 600;
-	pongData.paddles[0].offset = (pongData.screenHeight - OG_PADDLE_HEIGHT) / 2;
-	pongData.paddles[1].offset = (pongData.screenHeight - OG_PADDLE_HEIGHT) / 2;
-	pongData.ball.x = (pongData.screenWidth - OG_BALL_SIZE) / 2;
-	pongData.ball.y = (pongData.screenHeight - OG_BALL_SIZE) / 2;
-	pongData.ball.vx = 2;
-	ogRtlGenRandom(&pongData.ball.vy, sizeof(pongData.ball.vy));
-	pongData.ball.vy = pongData.ball.vy % 6 - 3;
+	ResetGame(&pongData);
 	HWND hPongWindow = CreatePongWindow(hInstance, &pongData);
 	if (!hPongWindow) {
 		return 1;

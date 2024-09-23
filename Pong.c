@@ -1,5 +1,9 @@
 #include "Pong.h"
 #include <windows.h>
+#include <ntsecapi.h>
+
+// See <ntsecapi.h> or https://learn.microsoft.com/en-us/windows/win32/api/ntsecapi/nf-ntsecapi-rtlgenrandom
+typedef BOOLEAN (__stdcall *LPFNRTLGENRANDOM)(_Out_writes_bytes_(RandomBufferLength) PVOID RandomBuffer, _In_ ULONG RandomBufferLength);
 
 void PaintGame(_In_ HDC hDc, _In_ LPPONGDATA lpPongData) {
 	HPEN hPen = CreatePen(PS_DASH, 1, RGB(127, 127, 127));
@@ -47,7 +51,7 @@ void PaintGame(_In_ HDC hDc, _In_ LPPONGDATA lpPongData) {
 	DeleteObject(hPen);
 }
 
-void UpdateGame(_In_ LPPONGDATA lpPongData) {
+void UpdateGame(_Inout_ LPPONGDATA lpPongData) {
 	const INT minOffset = 0;
 	const INT maxOffset = lpPongData->screenHeight - OG_PADDLE_HEIGHT;
 
@@ -91,6 +95,9 @@ void UpdateGame(_In_ LPPONGDATA lpPongData) {
 		if (isBlocked) {
 			lpBall->x = 2 * goals[0] - lpBall->x;
 			lpBall->vx = -lpBall->vx + 1;
+		} else {
+			++lpPongData->scores[1];
+			ResetGame(lpPongData);
 		}
 	}
 
@@ -101,6 +108,43 @@ void UpdateGame(_In_ LPPONGDATA lpPongData) {
 		if (isBlocked) {
 			lpBall->x = 2 * (goals[1] - OG_BALL_SIZE) - lpBall->x;
 			lpBall->vx = -lpBall->vx - 1;
+		} else {
+			++lpPongData->scores[0];
+			ResetGame(lpPongData);
 		}
 	}
+}
+
+void ResetGame(_Inout_ LPPONGDATA lpPongData) {
+	static BOOL isInitialized = FALSE;
+	static HMODULE hAdvapi32;
+	static LPFNRTLGENRANDOM ogRtlGenRandom;
+
+	if (!isInitialized) {
+		hAdvapi32 = LoadLibraryW(L"Advapi32.dll");
+		if (!hAdvapi32) {
+			MessageBoxW(NULL, L"Couldn't load the Advapi32.dll library.", L"Missing Library", MB_OK);
+			return 1;
+		}
+
+		ogRtlGenRandom = (LPFNRTLGENRANDOM)GetProcAddress(hAdvapi32, "SystemFunction036");
+		if (!ogRtlGenRandom) {
+			MessageBoxW(NULL, L"Couldn't load RtlGenRandom (SystemFunction036) from the Advapi32.dll library.", L"Missing Function", MB_OK);
+			return 1;
+		}
+
+		isInitialized = TRUE;
+	}
+
+	// Reset paddles
+	lpPongData->paddles[0].offset = lpPongData->paddles[1].offset
+		= (lpPongData->screenHeight - OG_PADDLE_HEIGHT) / 2;
+
+	// Reset ball
+	lpPongData->ball.x = (lpPongData->screenWidth - OG_BALL_SIZE) / 2;
+	lpPongData->ball.y = (lpPongData->screenHeight - OG_BALL_SIZE) / 2;
+
+	lpPongData->ball.vx = 2;
+	ogRtlGenRandom(&lpPongData->ball.vy, sizeof(lpPongData->ball.vy));
+	lpPongData->ball.vy = lpPongData->ball.vy % 5 - 2;
 }
