@@ -1,13 +1,26 @@
 #include <windows.h>
 #include <crtdbg.h>
+#include <ntsecapi.h>
 
 #define OG_TARGET_FREQUENCY 60
+
+#define OG_BALL_SIZE 12
 
 #define OG_PADDLE_HEIGHT 80
 #define OG_PADDLE_WIDTH 10
 #define OG_PADDLE_SPEED 4
 
 #define OG_GOAL_INSET 50
+
+typedef BOOLEAN (__stdcall *LPFNRTLGENRANDOM)(_Out_writes_bytes_(RandomBufferLength) PVOID RandomBuffer, _In_ ULONG RandomBufferLength);
+LPFNRTLGENRANDOM ogRtlGenRandom;
+
+typedef struct ogBall {
+	INT x;
+	INT y;
+	INT vx;
+	INT vy;
+} BALL, *LPBALL;
 
 typedef struct ogPaddle {
 	INT offset;
@@ -24,6 +37,7 @@ typedef struct ogPongData {
 	UINT scores[2];
 	PADDLE paddles[2];
 	PLAYERINPUT inputs[2];
+	BALL ball;
 } PONGDATA, *LPPONGDATA;
 
 void PaintGame(_In_ HDC hDc, _In_ LPPONGDATA lpPongData) {
@@ -60,6 +74,13 @@ void PaintGame(_In_ HDC hDc, _In_ LPPONGDATA lpPongData) {
 	paintRect.right = lpPongData->screenWidth - OG_GOAL_INSET + OG_PADDLE_WIDTH;
 	paintRect.top = lpPongData->paddles[1].offset;
 	paintRect.bottom = lpPongData->paddles[1].offset + OG_PADDLE_HEIGHT;
+	FillRect(hDc, &paintRect, hBrush);
+
+	// Ball
+	paintRect.left = lpPongData->ball.x;
+	paintRect.right = lpPongData->ball.x + OG_BALL_SIZE;
+	paintRect.top = lpPongData->ball.y;
+	paintRect.bottom = lpPongData->ball.y + OG_BALL_SIZE;
 	FillRect(hDc, &paintRect, hBrush);
 
 	DeleteObject(hPen);
@@ -191,6 +212,46 @@ void UpdateGame(_In_ LPPONGDATA lpPongData) {
 		if (paddle->offset < minOffset) paddle->offset = minOffset;
 		if (paddle->offset > maxOffset) paddle->offset = maxOffset;
 	}
+
+	LPBALL lpBall = &lpPongData->ball;
+	lpBall->x += lpBall->vx;
+	lpBall->y += lpBall->vy;
+
+	// Wall bounce
+	if (lpBall->y < 0) {
+		lpBall->y *= -1;
+		lpBall->vy *= -1;
+	}
+	if (lpBall->y >= lpPongData->screenHeight - OG_BALL_SIZE) {
+		INT height = lpPongData->screenHeight - OG_BALL_SIZE;
+
+		lpBall->y = 2 * height - lpBall->y;
+		lpBall->vy *= -1;
+	}
+
+	// Paddle bounce
+	LPPADDLE paddles = &lpPongData->paddles;
+	const INT goals[2] = { OG_GOAL_INSET, lpPongData->screenWidth - OG_GOAL_INSET };
+
+	if (lpBall->x <= goals[0]) {
+		BOOL isBlocked = lpBall->y <= paddles[0].offset + OG_PADDLE_HEIGHT
+			&& lpBall->y + OG_BALL_SIZE >= paddles[0].offset;
+
+		if (isBlocked) {
+			lpBall->x = 2 * goals[0] - lpBall->x;
+			lpBall->vx = -lpBall->vx + 1;
+		}
+	}
+
+	if (lpBall->x + OG_BALL_SIZE > goals[1]) {
+		BOOL isBlocked = lpBall->y <= paddles[1].offset + OG_PADDLE_HEIGHT
+			&& lpBall->y + OG_BALL_SIZE >= paddles[1].offset;
+
+		if (isBlocked) {
+			lpBall->x = 2 * (goals[1] - OG_BALL_SIZE) - lpBall->x;
+			lpBall->vx = -lpBall->vx - 1;
+		}
+	}
 }
 
 int GameLoop(_In_ HWND hPongWindow, _In_ LPPONGDATA lpPongData) {
@@ -297,11 +358,28 @@ int WINAPI wWinMain(
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
 
+	HMODULE hAdvapi32 = LoadLibraryW(L"Advapi32.dll");
+	if (!hAdvapi32) {
+		MessageBoxW(NULL, L"Couldn't load the Advapi32.dll library.", L"Missing Library", MB_OK);
+		return 1;
+	}
+
+	ogRtlGenRandom = GetProcAddress(hAdvapi32, "SystemFunction036");
+	if (!ogRtlGenRandom) {
+		MessageBoxW(NULL, L"Couldn't load RtlGenRandom (SystemFunction036) from the Advapi32.dll library.", L"Missing Function", MB_OK);
+		return 1;
+	}
+
 	PONGDATA pongData = { 0 };
 	pongData.screenWidth = 800;
 	pongData.screenHeight = 600;
 	pongData.paddles[0].offset = (pongData.screenHeight - OG_PADDLE_HEIGHT) / 2;
 	pongData.paddles[1].offset = (pongData.screenHeight - OG_PADDLE_HEIGHT) / 2;
+	pongData.ball.x = (pongData.screenWidth - OG_BALL_SIZE) / 2;
+	pongData.ball.y = (pongData.screenHeight - OG_BALL_SIZE) / 2;
+	pongData.ball.vx = 2;
+	ogRtlGenRandom(&pongData.ball.vy, sizeof(pongData.ball.vy));
+	pongData.ball.vy = pongData.ball.vy % 6 - 3;
 	HWND hPongWindow = CreatePongWindow(hInstance, &pongData);
 	if (!hPongWindow) {
 		return 1;
