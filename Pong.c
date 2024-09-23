@@ -11,7 +11,8 @@ void PaintGame(_In_ HDC hDc, _In_ LPPONGDATA lpPongData) {
 	RECT paintRect = { 0 };
 
 	SelectObject(hDc, hPen);
-	SelectObject(hDc, GetStockObject(NULL_BRUSH));
+	SelectObject(hDc, hBrush);
+	SelectObject(hDc, GetStockObject(ANSI_FIXED_FONT));
 	SetBkMode(hDc, TRANSPARENT);
 
 	// Background
@@ -47,6 +48,22 @@ void PaintGame(_In_ HDC hDc, _In_ LPPONGDATA lpPongData) {
 	paintRect.top = lpPongData->ball.y;
 	paintRect.bottom = lpPongData->ball.y + OG_BALL_SIZE;
 	FillRect(hDc, &paintRect, hBrush);
+
+	// Score
+	SetTextColor(hDc, RGB(127, 127, 127));
+
+	WCHAR scoreText[4] = { 0 };
+	_itow_s(lpPongData->scores[0], scoreText, _countof(scoreText), 10);
+	paintRect.left = 0;
+	paintRect.right = OG_GOAL_INSET;
+	paintRect.top = 0;
+	paintRect.bottom = lpPongData->screenHeight;
+	DrawTextW(hDc, scoreText, -1, &paintRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+	_itow_s(lpPongData->scores[1], scoreText, _countof(scoreText), 10);
+	paintRect.left = lpPongData->screenWidth - OG_GOAL_INSET;
+	paintRect.right = lpPongData->screenWidth;
+	DrawTextW(hDc, scoreText, -1, &paintRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
 	DeleteObject(hPen);
 }
