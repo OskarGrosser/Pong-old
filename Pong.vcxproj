@@ -128,6 +128,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Pong.c" />
+    <ClCompile Include="WinPong.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Pong.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
